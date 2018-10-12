@@ -1,30 +1,17 @@
-package com.mojn.util
-
 import scala.collection.mutable.{ Map => MutableMap }
 
 object MapCombine {
-  
-  def apply[K,V](m1:Map[K,V], m2:Map[K,V], merge: (V,V) => V): Map[K,V] = combine(m1,m2,merge)
-  
-  def combine[K,V](m1:Map[K,V], m2:Map[K,V], merge: (V,V) => V): Map[K,V] =
-    (m1,m2) match {
-      case (null,null) => Map()
-      case (null, something) => something
-      case (something, null) => something
-      case (left, right) => left ++ right.map{ case (k,v) => (k, left.get(k).map( merge(_,v) ).getOrElse(v) ) }
+
+  type MyMap[K, V] = Either[MutableMap[K, V], Map[K, V]]
+
+  def apply[K, V](m1: MyMap[K, V], m2: MyMap[K, V], merge: (V, V) => V): MyMap[K, V] = {
+    (m1, m2) match {
+      case (null, null) => Right(Map())
+      case (null, something@_) => something
+      case (something@_, null) => something
+      case (Right(m1), Right(m2)) => Right(m1 ++ m2.par.map({ case (k,v) => (k, m1.get(k).map(merge(_,v)).getOrElse(v)) }))
+      case (Left(m1), Left(m2)) => Left(m1 ++ m2.par.map({ case (k,v) => (k, m1.get(k).map(merge(_,v)).getOrElse(v)) }))
+      case _ => throw new IllegalArgumentException("Inconsistent mutability of arguments");
     }
-  
-}
-object MutableMapCombine {
-  
-  def apply[K,V](m1:MutableMap[K,V], m2:MutableMap[K,V], merge: (V,V) => V): MutableMap[K,V] = combine(m1,m2,merge)
-  
-  def combine[K,V](m1:MutableMap[K,V], m2:MutableMap[K,V], merge: (V,V) => V): MutableMap[K,V] =
-    (m1,m2) match {
-      case (null,null) => MutableMap()
-      case (null, something) => something
-      case (something, null) => something
-      case (left, right) => left ++ right.map{ case (k,v) => (k, left.get(k).map( merge(_,v) ).getOrElse(v) ) }
-    }
-  
+  }
 }
